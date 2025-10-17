@@ -1,0 +1,95 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cctv_postgres
+    environment:
+      POSTGRES_USER: cctv_user
+      POSTGRES_PASSWORD: cctv_password_123
+      POSTGRES_DB: cctv_monitoring
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cctv_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cctv_user -d cctv_monitoring"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RTSPtoWeb Service
+  rtsptoweb:
+    image: ghcr.io/deepch/rtsptoweb:latest
+    container_name: cctv_rtsptoweb
+    ports:
+      - "8083:8083"
+    volumes:
+      - rtsptoweb_config:/config
+      - ./rtsptoweb-config.json:/config/config.json
+    environment:
+      - RTSP_PORT=8083
+    networks:
+      - cctv_network
+    restart: unless-stopped
+    command: ["./rtsp-to-web", "--config=/config/config.json", "--debug"]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8083"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Golang Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cctv_backend
+    ports:
+      - "8080:8080"
+    environment:
+      # App Config
+      APP_NAME: CCTV Monitoring API
+      APP_ENV: production
+      APP_PORT: 8080
+      
+      # Database Config
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: cctv_user
+      DB_PASSWORD: cctv_password_123
+      DB_NAME: cctv_monitoring
+      DB_SSLMODE: disable
+      
+      # JWT Config
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      JWT_EXPIRATION: 24h
+      
+      # RTSPtoWeb Config
+      RTSP_TO_WEB_HOST: rtsptoweb
+      RTSP_TO_WEB_PORT: 8083
+      RTSP_TO_WEB_API_URL: http://rtsptoweb:8083    # Internal (backend ke RTSPtoWeb)
+      RTSP_TO_WEB_PUBLIC_URL: http://localhost:8083   # External (untuk frontend/client)
+      
+      # CORS Config
+      CORS_ALLOWED_ORIGINS: "*"
+      
+      # Logging
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rtsptoweb:
+        condition: service_started
+    networks:
+      - cctv_network
+    restart: unless-stopped
+
+networks:
+  cctv_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rtsptoweb_config:

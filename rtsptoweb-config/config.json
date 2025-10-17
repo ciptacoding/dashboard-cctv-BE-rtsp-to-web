@@ -1,0 +1,19 @@
+{
+  "server": {
+    "http_port": ":8083",
+    "http_demo": true,
+    "http_debug": false,
+    "http_login": "",
+    "http_password": "",
+    "https": false,
+    "https_auto_tls": false,
+    "https_auto_tls_name": "",
+    "https_cert": "",
+    "https_key": "",
+    "https_port": ":443"
+  },
+  "streams": {},
+  "channel_defaults": {
+    "on_demand": true
+  }
+}

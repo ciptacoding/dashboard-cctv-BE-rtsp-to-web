@@ -1,0 +1,69 @@
+{
+  "channel_defaults": {
+    "on_demand": true
+  },
+  "server": {
+    "debug": false,
+    "http_debug": false,
+    "http_demo": true,
+    "http_dir": "",
+    "http_login": "",
+    "http_password": "",
+    "http_port": ":8083",
+    "https": false,
+    "https_auto_tls": false,
+    "https_auto_tls_name": "",
+    "https_cert": "",
+    "https_key": "",
+    "https_port": ":443",
+    "ice_credential": "",
+    "ice_servers": [],
+    "ice_username": "",
+    "log_level": "panic",
+    "rtsp_port": "",
+    "token": {
+      "backend": "",
+      "enable": false
+    },
+    "webrtc_port_max": 0,
+    "webrtc_port_min": 0
+  },
+  "streams": {
+    "17a14b24-0b6e-40c0-8976-46445d881bea": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/101"
+        }
+      },
+      "name": "17a14b24-0b6e-40c0-8976-46445d881bea"
+    },
+    "300af3ce-65ff-4e28-9560-d7323adbdc1d": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/901"
+        }
+      },
+      "name": "300af3ce-65ff-4e28-9560-d7323adbdc1d"
+    },
+    "9317c9c3-c41a-4eeb-8165-24e04e8a5a17": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/801"
+        }
+      },
+      "name": "9317c9c3-c41a-4eeb-8165-24e04e8a5a17"
+    },
+    "c8a6227f-8dbf-4960-932b-41098308bb46": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/701"
+        }
+      },
+      "name": "c8a6227f-8dbf-4960-932b-41098308bb46"
+    }
+  }
+}

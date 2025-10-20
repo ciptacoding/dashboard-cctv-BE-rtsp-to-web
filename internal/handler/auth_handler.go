@@ -3,6 +3,7 @@ package handler
 import (
 	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/service"
+	"errors"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -28,29 +29,53 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	// Parse request body
 	var req models.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid request body",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid request body",
+				err.Error(),
+			),
+		)
 	}
 
 	// Validasi input
 	if req.Username == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Username and password are required",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeMissingFields,
+				"Username and password are required",
+			),
+		)
 	}
 
 	// Proses login
 	response, err := h.authService.Login(req.Username, req.Password, h.jwtSecret, h.jwtExpiration)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.APIResponse{
-			Success: false,
-			Message: "Login failed",
-			Error:   err.Error(),
-		})
+		// Handle different error types
+		switch {
+		case errors.Is(err, service.ErrInvalidCredentials):
+			return c.Status(fiber.StatusUnauthorized).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeInvalidCredentials,
+					"Invalid username or password",
+				),
+			)
+		case errors.Is(err, service.ErrUserInactive):
+			return c.Status(fiber.StatusForbidden).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeUserInactive,
+					"Your account is inactive. Please contact administrator",
+				),
+			)
+		default:
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeInternalError,
+					"An error occurred during login",
+					err.Error(),
+				),
+			)
+		}
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -65,19 +90,23 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	// Parse request body
 	var req models.CreateUserRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid request body",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid request body",
+				err.Error(),
+			),
+		)
 	}
 
 	// Validasi input
 	if req.Username == "" || req.Email == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Username, email, and password are required",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeMissingFields,
+				"Username, email, and password are required",
+			),
+		)
 	}
 
 	// Set default role jika tidak diisi
@@ -88,11 +117,24 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	// Proses registrasi
 	user, err := h.authService.Register(&req)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Registration failed",
-			Error:   err.Error(),
-		})
+		// Cek apakah username/email sudah ada
+		errMsg := err.Error()
+		if errMsg == "username already exists" || errMsg == "email already exists" {
+			return c.Status(fiber.StatusConflict).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeAlreadyExists,
+					errMsg,
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Registration failed",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(models.APIResponse{

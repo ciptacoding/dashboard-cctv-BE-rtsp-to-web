@@ -3,6 +3,7 @@ package middleware
 import (
 	"strings"
 
+	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,19 +15,23 @@ func AuthMiddleware(jwtSecret string) fiber.Handler {
 		// Ambil Authorization header
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"success": false,
-				"message": "Missing authorization header",
-			})
+			return c.Status(fiber.StatusUnauthorized).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeUnauthorized,
+					"Missing authorization header",
+				),
+			)
 		}
 
 		// Extract token dari "Bearer <token>"
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"success": false,
-				"message": "Invalid authorization header format",
-			})
+			return c.Status(fiber.StatusUnauthorized).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeUnauthorized,
+					"Invalid authorization header format",
+				),
+			)
 		}
 
 		token := parts[1]
@@ -34,10 +39,25 @@ func AuthMiddleware(jwtSecret string) fiber.Handler {
 		// Validasi token
 		claims, err := utils.ValidateToken(token, jwtSecret)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"success": false,
-				"message": "Invalid or expired token",
-			})
+			// Cek apakah token expired atau invalid
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "expired") {
+				return c.Status(fiber.StatusUnauthorized).JSON(
+					models.NewErrorResponse(
+						models.ErrCodeTokenExpired,
+						"Your session has expired. Please login again",
+						errMsg,
+					),
+				)
+			}
+
+			return c.Status(fiber.StatusUnauthorized).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeTokenInvalid,
+					"Invalid token",
+					errMsg,
+				),
+			)
 		}
 
 		// Simpan user info ke context
@@ -55,10 +75,12 @@ func RoleMiddleware(allowedRoles ...string) fiber.Handler {
 		// Ambil role dari context
 		role := c.Locals("role")
 		if role == nil {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"success": false,
-				"message": "Access denied",
-			})
+			return c.Status(fiber.StatusForbidden).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeUnauthorized,
+					"Access denied",
+				),
+			)
 		}
 
 		userRole := role.(string)
@@ -70,9 +92,11 @@ func RoleMiddleware(allowedRoles ...string) fiber.Handler {
 			}
 		}
 
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"success": false,
-			"message": "Insufficient permissions",
-		})
+		return c.Status(fiber.StatusForbidden).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"Insufficient permissions",
+			),
+		)
 	}
 }

@@ -26,11 +26,23 @@ func (h *CameraHandler) Create(c *fiber.Ctx) error {
 	// Parse request body
 	var req models.CreateCameraRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid request body",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid request body",
+				err.Error(),
+			),
+		)
+	}
+
+	// Validasi input
+	if req.Name == "" || req.RTSPUrl == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeMissingFields,
+				"Camera name and RTSP URL are required",
+			),
+		)
 	}
 
 	// Ambil user ID dari context
@@ -39,11 +51,13 @@ func (h *CameraHandler) Create(c *fiber.Ctx) error {
 	// Proses create camera
 	camera, err := h.cameraService.Create(&req, userID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to create camera",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to create camera",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(models.APIResponse{
@@ -59,11 +73,13 @@ func (h *CameraHandler) GetByID(c *fiber.Ctx) error {
 
 	camera, err := h.cameraService.GetByID(id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.APIResponse{
-			Success: false,
-			Message: "Camera not found",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusNotFound).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Camera not found",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -81,11 +97,13 @@ func (h *CameraHandler) GetAll(c *fiber.Ctx) error {
 
 	cameras, meta, err := h.cameraService.GetAll(page, pageSize)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to retrieve cameras",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to retrieve cameras",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.PaginatedResponse{
@@ -103,21 +121,36 @@ func (h *CameraHandler) Update(c *fiber.Ctx) error {
 	// Parse request body
 	var req models.UpdateCameraRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid request body",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid request body",
+				err.Error(),
+			),
+		)
 	}
 
 	// Proses update
 	camera, err := h.cameraService.Update(id, &req)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to update camera",
-			Error:   err.Error(),
-		})
+		// Check if camera not found
+		if err.Error() == "camera not found" {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					err.Error(),
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to update camera",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -132,11 +165,24 @@ func (h *CameraHandler) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	if err := h.cameraService.Delete(id); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to delete camera",
-			Error:   err.Error(),
-		})
+		// Check if camera not found
+		if err.Error() == "camera not found" {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					err.Error(),
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to delete camera",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -149,19 +195,23 @@ func (h *CameraHandler) Delete(c *fiber.Ctx) error {
 func (h *CameraHandler) GetByZone(c *fiber.Ctx) error {
 	zone := c.Query("zone")
 	if zone == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Zone parameter is required",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeMissingFields,
+				"Zone parameter is required",
+			),
+		)
 	}
 
 	cameras, err := h.cameraService.GetByZone(zone)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to retrieve cameras",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to retrieve cameras",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -176,35 +226,46 @@ func (h *CameraHandler) GetNearby(c *fiber.Ctx) error {
 	// Parse query parameters
 	lat, err := strconv.ParseFloat(c.Query("lat"), 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid latitude parameter",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid latitude parameter",
+				err.Error(),
+			),
+		)
 	}
 
 	lng, err := strconv.ParseFloat(c.Query("lng"), 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid longitude parameter",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid longitude parameter",
+				err.Error(),
+			),
+		)
 	}
 
 	radius, err := strconv.ParseFloat(c.Query("radius", "5"), 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Invalid radius parameter",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid radius parameter",
+				err.Error(),
+			),
+		)
 	}
 
 	cameras, err := h.cameraService.GetNearby(lat, lng, radius)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to retrieve nearby cameras",
-			Error:   err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to retrieve nearby cameras",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -220,11 +281,24 @@ func (h *CameraHandler) StartStream(c *fiber.Ctx) error {
 
 	camera, err := h.cameraService.StartStream(id)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to start stream",
-			Error:   err.Error(),
-		})
+		// Check if camera not found
+		if err.Error() == "camera not found" {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					err.Error(),
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeServiceUnavailable,
+				"Failed to start stream",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
@@ -239,11 +313,24 @@ func (h *CameraHandler) StopStream(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	if err := h.cameraService.StopStream(id); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.APIResponse{
-			Success: false,
-			Message: "Failed to stop stream",
-			Error:   err.Error(),
-		})
+		// Check if camera not found
+		if err.Error() == "camera not found" {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					err.Error(),
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeServiceUnavailable,
+				"Failed to stop stream",
+				err.Error(),
+			),
+		)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{

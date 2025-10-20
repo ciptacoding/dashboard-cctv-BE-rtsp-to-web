@@ -1,11 +1,20 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 
 	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/repository"
 	"cctv-monitoring-backend/internal/utils"
+)
+
+// Custom errors untuk auth service
+var (
+	ErrInvalidCredentials = errors.New("invalid username or password")
+	ErrUserNotFound       = errors.New("user not found")
+	ErrUserInactive       = errors.New("user account is inactive")
+	ErrPasswordMismatch   = errors.New("password does not match")
 )
 
 // AuthService adalah interface untuk business logic authentication
@@ -30,17 +39,19 @@ func (s *authService) Login(username, password, jwtSecret, jwtExpiration string)
 	// Cari user berdasarkan username
 	user, err := s.userRepo.GetByUsername(username)
 	if err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		// Return error yang konsisten tanpa membocorkan info
+		return nil, ErrInvalidCredentials
 	}
 
 	// Cek apakah user aktif
 	if !user.IsActive {
-		return nil, fmt.Errorf("user is inactive")
+		return nil, ErrUserInactive
 	}
 
 	// Validasi password
 	if err := utils.ComparePassword(user.PasswordHash, password); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		// Return error yang konsisten
+		return nil, ErrInvalidCredentials
 	}
 
 	// Generate JWT token

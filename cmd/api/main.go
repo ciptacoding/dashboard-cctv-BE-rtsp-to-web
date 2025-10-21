@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"cctv-monitoring-backend/internal/config"
 	"cctv-monitoring-backend/internal/database"
@@ -40,11 +41,16 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	cameraRepo := repository.NewCameraRepository(db)
+	tokenRepo := repository.NewTokenRepository(db)
 
 	// Initialize services
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, tokenRepo)
 	rtspService := service.NewRTSPService(cfg.RTSP.APIURL, cfg.RTSP.PublicBaseURL, cfg.RTSP.Username, cfg.RTSP.Password)
 	cameraService := service.NewCameraService(cameraRepo, rtspService)
+
+	// Start cleanup job for expired tokens (run every 1 hour)
+	cleanupService := service.NewCleanupService(tokenRepo)
+	cleanupService.StartCleanupJob(1 * time.Hour)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService, cfg.JWT.Secret, cfg.JWT.Expiration.String())
@@ -61,8 +67,15 @@ func main() {
 	app.Use(logger.New())
 	app.Use(middleware.CORSMiddleware(cfg.CORS.AllowedOrigins))
 
+	// Middleware untuk inject dependencies ke context
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("jwt_secret", cfg.JWT.Secret)
+		c.Locals("auth_service", authService)
+		return c.Next()
+	})
+
 	// Routes
-	setupRoutes(app, authHandler, cameraHandler, cfg.JWT.Secret)
+	setupRoutes(app, authHandler, cameraHandler, authService)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.App.Port)
@@ -71,7 +84,7 @@ func main() {
 }
 
 // setupRoutes mengatur semua routing aplikasi
-func setupRoutes(app *fiber.App, authHandler *handler.AuthHandler, cameraHandler *handler.CameraHandler, jwtSecret string) {
+func setupRoutes(app *fiber.App, authHandler *handler.AuthHandler, cameraHandler *handler.CameraHandler, authService service.AuthService) {
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -88,11 +101,12 @@ func setupRoutes(app *fiber.App, authHandler *handler.AuthHandler, cameraHandler
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/register", authHandler.Register)
 
-	// Protected routes
-	authMiddleware := middleware.AuthMiddleware(jwtSecret)
+	// Protected routes dengan auth middleware
+	authMiddleware := middleware.AuthMiddleware(authService)
 
 	// Auth routes (protected)
 	auth.Get("/me", authMiddleware, authHandler.Me)
+	auth.Post("/logout", authMiddleware, authHandler.Logout)
 
 	// Camera routes
 	cameras := api.Group("/cameras", authMiddleware)

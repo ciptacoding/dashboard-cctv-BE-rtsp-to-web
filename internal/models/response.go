@@ -21,6 +21,7 @@ const (
 	ErrCodeInvalidCredentials = "INVALID_CREDENTIALS"
 	ErrCodeTokenExpired       = "TOKEN_EXPIRED"
 	ErrCodeTokenInvalid       = "TOKEN_INVALID"
+	ErrCodeTokenRevoked       = "TOKEN_REVOKED" // NEW
 	ErrCodeUnauthorized       = "UNAUTHORIZED"
 	ErrCodeUserInactive       = "USER_INACTIVE"
 

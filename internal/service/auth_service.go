@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/repository"
@@ -15,22 +16,27 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrUserInactive       = errors.New("user account is inactive")
 	ErrPasswordMismatch   = errors.New("password does not match")
+	ErrTokenBlacklisted   = errors.New("token has been revoked")
 )
 
 // AuthService adalah interface untuk business logic authentication
 type AuthService interface {
 	Login(username, password string, jwtSecret string, jwtExpiration string) (*models.LoginResponse, error)
 	Register(req *models.CreateUserRequest) (*models.User, error)
+	Logout(token, userID string, jwtExpiration string) error
+	VerifyToken(token, jwtSecret string) (*utils.JWTClaims, error)
 }
 
 type authService struct {
-	userRepo repository.UserRepository
+	userRepo  repository.UserRepository
+	tokenRepo repository.TokenRepository
 }
 
 // NewAuthService membuat instance baru dari AuthService
-func NewAuthService(userRepo repository.UserRepository) AuthService {
+func NewAuthService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository) AuthService {
 	return &authService{
-		userRepo: userRepo,
+		userRepo:  userRepo,
+		tokenRepo: tokenRepo,
 	}
 }
 
@@ -39,7 +45,6 @@ func (s *authService) Login(username, password, jwtSecret, jwtExpiration string)
 	// Cari user berdasarkan username
 	user, err := s.userRepo.GetByUsername(username)
 	if err != nil {
-		// Return error yang konsisten tanpa membocorkan info
 		return nil, ErrInvalidCredentials
 	}
 
@@ -50,7 +55,6 @@ func (s *authService) Login(username, password, jwtSecret, jwtExpiration string)
 
 	// Validasi password
 	if err := utils.ComparePassword(user.PasswordHash, password); err != nil {
-		// Return error yang konsisten
 		return nil, ErrInvalidCredentials
 	}
 
@@ -108,4 +112,42 @@ func (s *authService) Register(req *models.CreateUserRequest) (*models.User, err
 	}
 
 	return user, nil
+}
+
+// Logout melakukan logout user dengan blacklist token
+func (s *authService) Logout(token, userID string, jwtExpiration string) error {
+	// Hash token untuk disimpan di blacklist
+	tokenHash := utils.HashToken(token)
+
+	// Calculate token expiration time
+	expiresAt := time.Now().Add(utils.ParseDuration(jwtExpiration))
+
+	// Blacklist token
+	if err := s.tokenRepo.BlacklistToken(tokenHash, userID, "LOGOUT", expiresAt); err != nil {
+		return fmt.Errorf("failed to blacklist token: %w", err)
+	}
+
+	return nil
+}
+
+// VerifyToken memverifikasi token dan check blacklist
+func (s *authService) VerifyToken(token, jwtSecret string) (*utils.JWTClaims, error) {
+	// Validate JWT token
+	claims, err := utils.ValidateToken(token, jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if token is blacklisted
+	tokenHash := utils.HashToken(token)
+	isBlacklisted, err := s.tokenRepo.IsTokenBlacklisted(tokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check token blacklist: %w", err)
+	}
+
+	if isBlacklisted {
+		return nil, ErrTokenBlacklisted
+	}
+
+	return claims, nil
 }

@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -63,6 +65,12 @@ func ValidateToken(tokenString, secret string) (*JWTClaims, error) {
 	}
 
 	return claims, nil
+}
+
+// HashToken membuat SHA256 hash dari token (untuk blacklist)
+func HashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
 }
 
 // ParseDuration helper untuk parse duration string

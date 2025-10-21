@@ -4,13 +4,13 @@ import (
 	"strings"
 
 	"cctv-monitoring-backend/internal/models"
-	"cctv-monitoring-backend/internal/utils"
+	"cctv-monitoring-backend/internal/service"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // AuthMiddleware adalah middleware untuk validasi JWT token
-func AuthMiddleware(jwtSecret string) fiber.Handler {
+func AuthMiddleware(authService service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Ambil Authorization header
 		authHeader := c.Get("Authorization")
@@ -36,11 +36,35 @@ func AuthMiddleware(jwtSecret string) fiber.Handler {
 
 		token := parts[1]
 
-		// Validasi token
-		claims, err := utils.ValidateToken(token, jwtSecret)
+		// Get JWT secret from context
+		jwtSecret, ok := c.Locals("jwt_secret").(string)
+		if !ok || jwtSecret == "" {
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeInternalError,
+					"Server configuration error",
+				),
+			)
+		}
+
+		// Verify token (includes blacklist check)
+		claims, err := authService.VerifyToken(token, jwtSecret)
 		if err != nil {
-			// Cek apakah token expired atau invalid
+			// Cek tipe error
 			errMsg := err.Error()
+
+			// Token blacklisted (logged out)
+			if errMsg == service.ErrTokenBlacklisted.Error() {
+				return c.Status(fiber.StatusUnauthorized).JSON(
+					models.NewErrorResponse(
+						models.ErrCodeTokenRevoked,
+						"Your session has been terminated. Please login again",
+						errMsg,
+					),
+				)
+			}
+
+			// Token expired
 			if strings.Contains(errMsg, "expired") {
 				return c.Status(fiber.StatusUnauthorized).JSON(
 					models.NewErrorResponse(
@@ -51,6 +75,7 @@ func AuthMiddleware(jwtSecret string) fiber.Handler {
 				)
 			}
 
+			// Token invalid
 			return c.Status(fiber.StatusUnauthorized).JSON(
 				models.NewErrorResponse(
 					models.ErrCodeTokenInvalid,

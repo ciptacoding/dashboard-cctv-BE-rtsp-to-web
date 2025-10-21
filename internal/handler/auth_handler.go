@@ -4,6 +4,7 @@ import (
 	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/service"
 	"errors"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -82,6 +83,52 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		Success: true,
 		Message: "Login successful",
 		Data:    response,
+	})
+}
+
+// Logout handler untuk logout user
+func (h *AuthHandler) Logout(c *fiber.Ctx) error {
+	// Get token from Authorization header
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"Missing authorization header",
+			),
+		)
+	}
+
+	// Extract token
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"Invalid authorization header format",
+			),
+		)
+	}
+
+	token := parts[1]
+
+	// Get user ID from context (set by auth middleware)
+	userID := c.Locals("user_id").(string)
+
+	// Logout (blacklist token)
+	if err := h.authService.Logout(token, userID, h.jwtExpiration); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to logout",
+				err.Error(),
+			),
+		)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
+		Success: true,
+		Message: "Logout successful",
 	})
 }
 

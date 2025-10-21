@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -9,26 +10,73 @@ import (
 type Camera struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description,omitempty"`
+	Description  sql.NullString `json:"-"` // Ignore in default JSON
 	RTSPUrl      string         `json:"rtsp_url"`
-	StreamID     sql.NullString `json:"stream_id,omitempty"`
+	StreamID     sql.NullString `json:"-"`
 	Latitude     float64        `json:"latitude"`
 	Longitude    float64        `json:"longitude"`
-	Building     sql.NullString `json:"building,omitempty"`
-	Zone         sql.NullString `json:"zone,omitempty"`
-	IPAddress    sql.NullString `json:"ip_address,omitempty"`
-	Port         sql.NullInt64  `json:"port,omitempty"`
-	Manufacturer sql.NullString `json:"manufacturer,omitempty"`
-	Model        sql.NullString `json:"model,omitempty"`
-	Resolution   sql.NullString `json:"resolution,omitempty"`
+	Building     sql.NullString `json:"-"`
+	Zone         sql.NullString `json:"-"`
+	IPAddress    sql.NullString `json:"-"`
+	Port         sql.NullInt64  `json:"-"`
+	Manufacturer sql.NullString `json:"-"`
+	Model        sql.NullString `json:"-"`
+	Resolution   sql.NullString `json:"-"`
 	FPS          int            `json:"fps"`
 	Tags         []string       `json:"tags"`
 	Status       string         `json:"status"`
-	LastSeen     sql.NullTime   `json:"last_seen,omitempty"`
+	LastSeen     sql.NullTime   `json:"-"`
 	IsActive     bool           `json:"is_active"`
-	CreatedBy    sql.NullString `json:"created_by,omitempty"`
+	CreatedBy    sql.NullString `json:"-"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
+// MarshalJSON custom JSON marshaling untuk Camera
+func (c Camera) MarshalJSON() ([]byte, error) {
+	type Alias Camera
+	return json.Marshal(&struct {
+		*Alias
+		Description  string `json:"description,omitempty"`
+		StreamID     string `json:"stream_id,omitempty"`
+		Building     string `json:"building,omitempty"`
+		Zone         string `json:"zone,omitempty"`
+		IPAddress    string `json:"ip_address,omitempty"`
+		Port         *int64 `json:"port,omitempty"`
+		Manufacturer string `json:"manufacturer,omitempty"`
+		Model        string `json:"model,omitempty"`
+		Resolution   string `json:"resolution,omitempty"`
+		LastSeen     string `json:"last_seen,omitempty"`
+		CreatedBy    string `json:"created_by,omitempty"`
+	}{
+		Alias:        (*Alias)(&c),
+		Description:  c.Description.String,
+		StreamID:     c.StreamID.String,
+		Building:     c.Building.String,
+		Zone:         c.Zone.String,
+		IPAddress:    c.IPAddress.String,
+		Port:         nullInt64ToPtr(c.Port),
+		Manufacturer: c.Manufacturer.String,
+		Model:        c.Model.String,
+		Resolution:   c.Resolution.String,
+		LastSeen:     formatNullTime(c.LastSeen),
+		CreatedBy:    c.CreatedBy.String,
+	})
+}
+
+// Helper functions
+func nullInt64ToPtr(ni sql.NullInt64) *int64 {
+	if ni.Valid {
+		return &ni.Int64
+	}
+	return nil
+}
+
+func formatNullTime(nt sql.NullTime) string {
+	if nt.Valid {
+		return nt.Time.Format(time.RFC3339)
+	}
+	return ""
 }
 
 // CreateCameraRequest adalah struktur untuk membuat kamera baru

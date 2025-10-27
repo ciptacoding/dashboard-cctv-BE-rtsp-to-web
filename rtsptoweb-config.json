@@ -32,7 +32,7 @@
     "01ed06d5-0b38-4d42-b709-17a89b03a7c0": {
       "channels": {
         "0": {
-          "on_demand": false,
+          "on_demand": true,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c39/s0/live"
         }
       },
@@ -41,16 +41,43 @@
     "049d3cb9-2f1a-403c-af3f-e846b80e761d": {
       "channels": {
         "0": {
-          "on_demand": false,
+          "on_demand": true,
           "url": "rtsp://admin:Oikn2024!@10.20.137.242:554/unicast/c2/s0/live"
         }
       },
       "name": "Data Center"
     },
+    "221c3df5-4b24-4cfe-861b-e7dfc39aeb1c": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c1/s0/live"
+        }
+      },
+      "name": "Pintu Masuk Lobby Utama"
+    },
     "449a6f3a-157d-446f-af33-ff4463ba0338": {
       "channels": {
         "0": {
-          "on_demand": false,
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c2/s0/live"
+        }
+      },
+      "name": "SB Kendaraan Out"
+    },
+    "5f052b8d-9a9d-484c-be35-5b899901a11d": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c39/s0/live"
+        }
+      },
+      "name": "Lobby Utama"
+    },
+    "aac4c385-3e16-45b4-b753-bc21bdb02437": {
+      "channels": {
+        "0": {
+          "on_demand": true,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c2/s0/live"
         }
       },
@@ -59,16 +86,25 @@
     "b02d478b-ed2d-4249-b2f8-16a9ead9fa3c": {
       "channels": {
         "0": {
-          "on_demand": false,
+          "on_demand": true,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c39/s0/live"
         }
       },
       "name": "Lobby OIKN"
     },
+    "b4be4ae3-4658-45ce-a31f-40c9bf94b130": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.137.242:554/unicast/c2/s0/live"
+        }
+      },
+      "name": "Data Center"
+    },
     "f3c04322-e033-4dcd-a715-e8859bae97ff": {
       "channels": {
         "0": {
-          "on_demand": false,
+          "on_demand": true,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c1/s0/live"
         }
       },

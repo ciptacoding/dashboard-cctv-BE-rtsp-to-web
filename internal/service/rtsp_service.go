@@ -11,8 +11,8 @@ type RTSPService interface {
 	AddStream(cameraID, name, rtspURL string) (streamID, hlsURL, snapshotURL string, err error)
 	RemoveStream(streamID string) error
 	GetStreamStatus(streamID string) (string, error)
-	GetHLSURL(streamID string) string      // NEW
-	GetSnapshotURL(streamID string) string // NEW
+	GetHLSURL(streamID string) string
+	GetSnapshotURL(streamID string) string
 }
 
 type rtspService struct {
@@ -54,7 +54,9 @@ func (s *rtspService) AddStream(cameraID, name, rtspURL string) (streamID, hlsUR
 		"name": name,
 		"channels": map[string]interface{}{
 			"0": map[string]interface{}{
-				"url": rtspURL,
+				"url":        rtspURL,
+				"on_demand":  false, // ✅ ADDED: Always running (instant playback)
+				"persistent": true,  // ✅ ADDED: Auto-reconnect on failure
 			},
 		},
 	}

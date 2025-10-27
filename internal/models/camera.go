@@ -7,10 +7,11 @@ import (
 )
 
 // Camera merepresentasikan struktur data kamera CCTV
+// Camera merepresentasikan struktur data kamera CCTV
 type Camera struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
-	Description  sql.NullString `json:"-"` // Ignore in default JSON
+	Description  sql.NullString `json:"-"`
 	RTSPUrl      string         `json:"rtsp_url"`
 	StreamID     sql.NullString `json:"-"`
 	Latitude     float64        `json:"latitude"`
@@ -30,6 +31,10 @@ type Camera struct {
 	CreatedBy    sql.NullString `json:"-"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
+
+	// Stream URLs (not stored in DB, generated dynamically)
+	HLSUrl      string `json:"hls_url,omitempty"`      // NEW
+	SnapshotUrl string `json:"snapshot_url,omitempty"` // NEW
 }
 
 // MarshalJSON custom JSON marshaling untuk Camera
@@ -95,6 +100,7 @@ type CreateCameraRequest struct {
 	Resolution   string   `json:"resolution,omitempty"`
 	FPS          int      `json:"fps,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
+	Status       string   `json:"status,omitempty"` // NEW: tambahkan ini
 }
 
 // UpdateCameraRequest adalah struktur untuk update kamera

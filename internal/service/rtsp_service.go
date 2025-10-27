@@ -4,164 +4,129 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
-// RTSPService adalah interface untuk integrasi dengan RTSPtoWeb
 type RTSPService interface {
-	AddStream(cameraID, rtspURL string) (string, error)
+	AddStream(cameraID, name, rtspURL string) (streamID, hlsURL, snapshotURL string, err error)
 	RemoveStream(streamID string) error
-	GetHLSURL(streamID string) string
-	GetWebRTCURL(streamID string) string
-	GetSnapshotURL(streamID string) string
-	GetPublicBaseURL() string
+	GetStreamStatus(streamID string) (string, error)
+	GetHLSURL(streamID string) string      // NEW
+	GetSnapshotURL(streamID string) string // NEW
 }
 
 type rtspService struct {
-	baseURL       string
+	apiURL        string
 	publicBaseURL string
 	username      string
 	password      string
+	httpClient    *http.Client
 }
 
-// NewRTSPService membuat instance baru dari RTSPService
-func NewRTSPService(baseURL, publicBaseURL, username, password string) RTSPService {
+func NewRTSPService(apiURL, publicBaseURL, username, password string) RTSPService {
 	return &rtspService{
-		baseURL:       baseURL,
+		apiURL:        apiURL,
 		publicBaseURL: publicBaseURL,
 		username:      username,
 		password:      password,
+		httpClient:    &http.Client{},
 	}
 }
 
-// StreamConfig adalah struktur konfigurasi stream untuk RTSPtoWeb
-type StreamConfig struct {
-	Name string            `json:"name"`
-	URL  string            `json:"url"`
-	On   map[string]string `json:"on_demand,omitempty"`
+// GetHLSURL generates HLS URL for a stream
+func (s *rtspService) GetHLSURL(streamID string) string {
+	if streamID == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/stream/%s/channel/0/hls/live/index.m3u8", s.publicBaseURL, streamID)
 }
 
-// AddStream menambahkan stream baru ke RTSPtoWeb
-func (s *rtspService) AddStream(cameraID, rtspURL string) (string, error) {
-	// Konfigurasi stream sesuai format RTSPtoWeb
-	streamConfig := map[string]interface{}{
-		"uuid": cameraID,
-		"name": cameraID,
+// GetSnapshotURL generates snapshot URL for a stream
+func (s *rtspService) GetSnapshotURL(streamID string) string {
+	if streamID == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/stream/%s/channel/0/jpeg", s.publicBaseURL, streamID)
+}
+
+func (s *rtspService) AddStream(cameraID, name, rtspURL string) (streamID, hlsURL, snapshotURL string, err error) {
+	payload := map[string]interface{}{
+		"name": name,
 		"channels": map[string]interface{}{
 			"0": map[string]interface{}{
-				"url":       rtspURL,
-				"on_demand": true,
-				"debug":     false,
+				"url": rtspURL,
 			},
 		},
 	}
 
-	jsonData, err := json.Marshal(streamConfig)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal config: %w", err)
+		return "", "", "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	// Kirim request ke RTSPtoWeb API
-	url := fmt.Sprintf("%s/stream/%s/add", s.baseURL, cameraID)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/stream/%s/add", s.apiURL, cameraID), bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", "", "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// RTSPtoWeb menggunakan application/json (bukan form-urlencoded)
 	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(s.username, s.password)
 
-	// Add basic auth jika ada (dari UI: Basic ZGVtbzpkZW1v = demo:demo)
-	if s.username != "" && s.password != "" {
-		req.SetBasicAuth(s.username, s.password)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
+		return "", "", "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Read response body
-	body, _ := io.ReadAll(resp.Body)
-
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("failed to add stream, status: %d, response: %s", resp.StatusCode, string(body))
+		return "", "", "", fmt.Errorf("RTSPtoWeb API returned status: %d", resp.StatusCode)
 	}
 
-	// Log success
-	fmt.Printf("✓ Stream registered successfully: %s, response: %s\n", cameraID, string(body))
+	streamID = cameraID
+	hlsURL = s.GetHLSURL(streamID)
+	snapshotURL = s.GetSnapshotURL(streamID)
 
-	// Return stream ID
-	return cameraID, nil
+	return streamID, hlsURL, snapshotURL, nil
 }
 
-// RemoveStream menghapus stream dari RTSPtoWeb
 func (s *rtspService) RemoveStream(streamID string) error {
-	// RTSPtoWeb menggunakan endpoint edit untuk disable stream
-	config := map[string]interface{}{
-		"name": streamID,
-		"channels": map[string]interface{}{
-			"0": map[string]interface{}{
-				"name":      streamID,
-				"url":       "",
-				"on_demand": false,
-				"status":    0,
-			},
-		},
-	}
-
-	jsonData, err := json.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	url := fmt.Sprintf("%s/stream/%s/edit", s.baseURL, streamID)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/stream/%s/delete", s.apiURL, streamID), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(s.username, s.password)
 
-	// Add basic auth jika ada
-	if s.username != "" && s.password != "" {
-		req.SetBasicAuth(s.username, s.password)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// 404 adalah ok karena stream mungkin sudah tidak ada
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
-		return fmt.Errorf("failed to remove stream, status: %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("RTSPtoWeb API returned status: %d", resp.StatusCode)
 	}
 
 	return nil
 }
 
-// GetHLSURL mengembalikan URL HLS untuk streaming
-func (s *rtspService) GetHLSURL(streamID string) string {
-	return fmt.Sprintf("%s/stream/%s/channel/0/hls/live/index.m3u8", s.publicBaseURL, streamID)
-}
+func (s *rtspService) GetStreamStatus(streamID string) (string, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/stream/%s/info", s.apiURL, streamID), nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 
-// GetWebRTCURL mengembalikan URL WebRTC untuk streaming
-func (s *rtspService) GetWebRTCURL(streamID string) string {
-	return fmt.Sprintf("%s/stream/%s/channel/0/webrtc", s.publicBaseURL, streamID)
-}
+	req.SetBasicAuth(s.username, s.password)
 
-// GetSnapshotURL mengembalikan URL untuk snapshot JPEG
-func (s *rtspService) GetSnapshotURL(streamID string) string {
-	return fmt.Sprintf("%s/stream/%s/channel/0/jpeg", s.publicBaseURL, streamID)
-}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
 
-// GetPublicBaseURL mengembalikan public base URL
-func (s *rtspService) GetPublicBaseURL() string {
-	return s.publicBaseURL
+	if resp.StatusCode == http.StatusOK {
+		return "READY", nil
+	}
+
+	return "OFFLINE", nil
 }

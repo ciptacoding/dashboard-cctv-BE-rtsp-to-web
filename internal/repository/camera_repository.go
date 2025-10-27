@@ -1,66 +1,68 @@
 package repository
 
 import (
+	"cctv-monitoring-backend/internal/models"
 	"database/sql"
 	"fmt"
-
-	"cctv-monitoring-backend/internal/models"
 
 	"github.com/lib/pq"
 )
 
-// CameraRepository adalah interface untuk operasi database camera
 type CameraRepository interface {
-	Create(camera *models.Camera, createdBy string) error
+	Create(camera *models.Camera, userID string) error
 	GetByID(id string) (*models.Camera, error)
-	GetAll(limit, offset int) ([]*models.Camera, int64, error)
+	GetAll(page, pageSize int) ([]*models.Camera, *models.PaginationMeta, error)
 	Update(id string, camera *models.Camera) error
 	Delete(id string) error
-	UpdateStreamID(cameraID, streamID string) error
-	UpdateStatus(cameraID, status string) error
 	GetByZone(zone string) ([]*models.Camera, error)
-	GetNearby(lat, lng, radiusKm float64) ([]*models.Camera, error)
+	GetNearby(lat, lng, radius float64) ([]*models.Camera, error)
 }
 
 type cameraRepository struct {
 	db *sql.DB
 }
 
-// NewCameraRepository membuat instance baru dari CameraRepository
 func NewCameraRepository(db *sql.DB) CameraRepository {
 	return &cameraRepository{db: db}
 }
 
-// Create membuat camera baru di database
-func (r *cameraRepository) Create(camera *models.Camera, createdBy string) error {
+func (r *cameraRepository) Create(camera *models.Camera, userID string) error {
 	query := `
 		INSERT INTO cameras (
-			name, description, rtsp_url, latitude, longitude,
-			building, zone, ip_address, port, manufacturer, model,
-			resolution, fps, tags, status, created_by
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		RETURNING id, created_at, updated_at
+			id, name, description, rtsp_url, stream_id,
+			latitude, longitude, building, zone,
+			ip_address, port, manufacturer, model, resolution, fps,
+			tags, status, is_active, created_by,
+			created_at, updated_at
+		) VALUES (
+			uuid_generate_v4(), $1, $2, $3, $4,
+			$5, $6, $7, $8,
+			$9, $10, $11, $12, $13, $14,
+			$15, $16, $17, $18,
+			NOW(), NOW()
+		) RETURNING id, created_at, updated_at
 	`
 
 	err := r.db.QueryRow(
 		query,
 		camera.Name,
-		nullString(camera.Description),
+		camera.Description,
 		camera.RTSPUrl,
+		camera.StreamID,
 		camera.Latitude,
 		camera.Longitude,
-		nullString(camera.Building),
-		nullString(camera.Zone),
-		nullString(camera.IPAddress),
-		nullInt64(camera.Port),
-		nullString(camera.Manufacturer),
-		nullString(camera.Model),
-		nullString(camera.Resolution),
+		camera.Building,
+		camera.Zone,
+		camera.IPAddress,
+		camera.Port,
+		camera.Manufacturer,
+		camera.Model,
+		camera.Resolution,
 		camera.FPS,
 		pq.Array(camera.Tags),
 		camera.Status,
-		createdBy,
+		camera.IsActive,
+		userID,
 	).Scan(&camera.ID, &camera.CreatedAt, &camera.UpdatedAt)
 
 	if err != nil {
@@ -70,15 +72,16 @@ func (r *cameraRepository) Create(camera *models.Camera, createdBy string) error
 	return nil
 }
 
-// GetByID mencari camera berdasarkan ID
 func (r *cameraRepository) GetByID(id string) (*models.Camera, error) {
 	query := `
 		SELECT 
-			id, name, description, rtsp_url, stream_id, latitude, longitude,
-			building, zone, ip_address, port, manufacturer, model, resolution,
-			fps, tags, status, last_seen, is_active, created_by, created_at, updated_at
+			id, name, description, rtsp_url, stream_id,
+			latitude, longitude, building, zone,
+			ip_address, port, manufacturer, model, resolution, fps,
+			tags, status, last_seen, is_active, created_by,
+			created_at, updated_at
 		FROM cameras
-		WHERE id = $1
+		WHERE id = $1 AND is_active = true
 	`
 
 	camera := &models.Camera{}
@@ -118,35 +121,43 @@ func (r *cameraRepository) GetByID(id string) (*models.Camera, error) {
 	return camera, nil
 }
 
-// GetAll mengambil semua camera dengan pagination
-func (r *cameraRepository) GetAll(limit, offset int) ([]*models.Camera, int64, error) {
-	// Hitung total records
-	var total int64
+func (r *cameraRepository) GetAll(page, pageSize int) ([]*models.Camera, *models.PaginationMeta, error) {
+	offset := (page - 1) * pageSize
+
+	// Get total count
+	var totalItems int64
 	countQuery := "SELECT COUNT(*) FROM cameras WHERE is_active = true"
-	err := r.db.QueryRow(countQuery).Scan(&total)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count cameras: %w", err)
+	if err := r.db.QueryRow(countQuery).Scan(&totalItems); err != nil {
+		return nil, nil, fmt.Errorf("failed to count cameras: %w", err)
 	}
 
-	// Ambil data dengan pagination
+	// Calculate total pages
+	totalPages := int(totalItems) / pageSize
+	if int(totalItems)%pageSize > 0 {
+		totalPages++
+	}
+
+	// Get cameras
 	query := `
 		SELECT 
-			id, name, description, rtsp_url, stream_id, latitude, longitude,
-			building, zone, ip_address, port, manufacturer, model, resolution,
-			fps, tags, status, last_seen, is_active, created_by, created_at, updated_at
+			id, name, description, rtsp_url, stream_id,
+			latitude, longitude, building, zone,
+			ip_address, port, manufacturer, model, resolution, fps,
+			tags, status, last_seen, is_active, created_by,
+			created_at, updated_at
 		FROM cameras
 		WHERE is_active = true
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`
 
-	rows, err := r.db.Query(query, limit, offset)
+	rows, err := r.db.Query(query, pageSize, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get cameras: %w", err)
+		return nil, nil, fmt.Errorf("failed to get cameras: %w", err)
 	}
 	defer rows.Close()
 
-	cameras := make([]*models.Camera, 0)
+	cameras := []*models.Camera{}
 	for rows.Next() {
 		camera := &models.Camera{}
 		err := rows.Scan(
@@ -174,39 +185,60 @@ func (r *cameraRepository) GetAll(limit, offset int) ([]*models.Camera, int64, e
 			&camera.UpdatedAt,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan camera: %w", err)
+			return nil, nil, fmt.Errorf("failed to scan camera: %w", err)
 		}
 		cameras = append(cameras, camera)
 	}
 
-	return cameras, total, nil
+	meta := &models.PaginationMeta{
+		Page:       page,
+		PageSize:   pageSize,
+		TotalItems: totalItems,
+		TotalPages: totalPages,
+	}
+
+	return cameras, meta, nil
 }
 
-// Update mengupdate data camera
 func (r *cameraRepository) Update(id string, camera *models.Camera) error {
 	query := `
-		UPDATE cameras
-		SET name = $1, description = $2, rtsp_url = $3, latitude = $4, longitude = $5,
-			building = $6, zone = $7, ip_address = $8, port = $9, manufacturer = $10,
-			model = $11, resolution = $12, fps = $13, tags = $14, status = $15,
-			is_active = $16, updated_at = NOW()
-		WHERE id = $17
+		UPDATE cameras SET
+			name = $1,
+			description = $2,
+			rtsp_url = $3,
+			stream_id = $4,
+			latitude = $5,
+			longitude = $6,
+			building = $7,
+			zone = $8,
+			ip_address = $9,
+			port = $10,
+			manufacturer = $11,
+			model = $12,
+			resolution = $13,
+			fps = $14,
+			tags = $15,
+			status = $16,
+			is_active = $17,
+			updated_at = NOW()
+		WHERE id = $18
 	`
 
-	result, err := r.db.Exec(
+	_, err := r.db.Exec(
 		query,
 		camera.Name,
-		nullString(camera.Description),
+		camera.Description,
 		camera.RTSPUrl,
+		camera.StreamID,
 		camera.Latitude,
 		camera.Longitude,
-		nullString(camera.Building),
-		nullString(camera.Zone),
-		nullString(camera.IPAddress),
-		nullInt64(camera.Port),
-		nullString(camera.Manufacturer),
-		nullString(camera.Model),
-		nullString(camera.Resolution),
+		camera.Building,
+		camera.Zone,
+		camera.IPAddress,
+		camera.Port,
+		camera.Manufacturer,
+		camera.Model,
+		camera.Resolution,
 		camera.FPS,
 		pq.Array(camera.Tags),
 		camera.Status,
@@ -218,63 +250,31 @@ func (r *cameraRepository) Update(id string, camera *models.Camera) error {
 		return fmt.Errorf("failed to update camera: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("camera not found")
-	}
-
 	return nil
 }
 
-// Delete menghapus camera (soft delete)
 func (r *cameraRepository) Delete(id string) error {
 	query := "UPDATE cameras SET is_active = false, updated_at = NOW() WHERE id = $1"
 
-	result, err := r.db.Exec(query, id)
+	_, err := r.db.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete camera: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("camera not found")
-	}
-
 	return nil
 }
 
-// UpdateStreamID mengupdate stream ID dari RTSPtoWeb
-func (r *cameraRepository) UpdateStreamID(cameraID, streamID string) error {
-	query := "UPDATE cameras SET stream_id = $1, updated_at = NOW() WHERE id = $2"
-	_, err := r.db.Exec(query, streamID, cameraID)
-	return err
-}
-
-// UpdateStatus mengupdate status camera
-func (r *cameraRepository) UpdateStatus(cameraID, status string) error {
-	query := "UPDATE cameras SET status = $1, last_seen = NOW(), updated_at = NOW() WHERE id = $2"
-	_, err := r.db.Exec(query, status, cameraID)
-	return err
-}
-
-// GetByZone mengambil camera berdasarkan zone
 func (r *cameraRepository) GetByZone(zone string) ([]*models.Camera, error) {
 	query := `
 		SELECT 
-			id, name, description, rtsp_url, stream_id, latitude, longitude,
-			building, zone, ip_address, port, manufacturer, model, resolution,
-			fps, tags, status, last_seen, is_active, created_by, created_at, updated_at
+			id, name, description, rtsp_url, stream_id,
+			latitude, longitude, building, zone,
+			ip_address, port, manufacturer, model, resolution, fps,
+			tags, status, last_seen, is_active, created_by,
+			created_at, updated_at
 		FROM cameras
 		WHERE zone = $1 AND is_active = true
-		ORDER BY name
+		ORDER BY created_at DESC
 	`
 
 	rows, err := r.db.Query(query, zone)
@@ -283,7 +283,7 @@ func (r *cameraRepository) GetByZone(zone string) ([]*models.Camera, error) {
 	}
 	defer rows.Close()
 
-	cameras := make([]*models.Camera, 0)
+	cameras := []*models.Camera{}
 	for rows.Next() {
 		camera := &models.Camera{}
 		err := rows.Scan(
@@ -319,30 +319,31 @@ func (r *cameraRepository) GetByZone(zone string) ([]*models.Camera, error) {
 	return cameras, nil
 }
 
-// GetNearby mengambil camera dalam radius tertentu (dalam kilometer)
-func (r *cameraRepository) GetNearby(lat, lng, radiusKm float64) ([]*models.Camera, error) {
-	// Menggunakan earthdistance extension untuk query geospatial
+func (r *cameraRepository) GetNearby(lat, lng, radius float64) ([]*models.Camera, error) {
 	query := `
 		SELECT 
-			id, name, description, rtsp_url, stream_id, latitude, longitude,
-			building, zone, ip_address, port, manufacturer, model, resolution,
-			fps, tags, status, last_seen, is_active, created_by, created_at, updated_at,
-			earth_distance(ll_to_earth($1, $2), ll_to_earth(latitude, longitude)) as distance
+			id, name, description, rtsp_url, stream_id,
+			latitude, longitude, building, zone,
+			ip_address, port, manufacturer, model, resolution, fps,
+			tags, status, last_seen, is_active, created_by,
+			created_at, updated_at,
+			earth_distance(
+				ll_to_earth(latitude, longitude),
+				ll_to_earth($1, $2)
+			) / 1000 as distance_km
 		FROM cameras
 		WHERE is_active = true
-			AND earth_distance(ll_to_earth($1, $2), ll_to_earth(latitude, longitude)) <= $3
-		ORDER BY distance
+		AND earth_box(ll_to_earth($1, $2), $3 * 1000) @> ll_to_earth(latitude, longitude)
+		ORDER BY distance_km ASC
 	`
 
-	radiusMeters := radiusKm * 1000 // Convert km to meters
-
-	rows, err := r.db.Query(query, lat, lng, radiusMeters)
+	rows, err := r.db.Query(query, lat, lng, radius)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nearby cameras: %w", err)
 	}
 	defer rows.Close()
 
-	cameras := make([]*models.Camera, 0)
+	cameras := []*models.Camera{}
 	for rows.Next() {
 		camera := &models.Camera{}
 		var distance float64
@@ -378,19 +379,4 @@ func (r *cameraRepository) GetNearby(lat, lng, radiusKm float64) ([]*models.Came
 	}
 
 	return cameras, nil
-}
-
-// Helper functions untuk handle NULL values
-func nullString(s sql.NullString) interface{} {
-	if s.Valid {
-		return s.String
-	}
-	return nil
-}
-
-func nullInt64(i sql.NullInt64) interface{} {
-	if i.Valid {
-		return i.Int64
-	}
-	return nil
 }

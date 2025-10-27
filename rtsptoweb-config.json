@@ -29,10 +29,19 @@
     "webrtc_port_min": 0
   },
   "streams": {
+    "01ed06d5-0b38-4d42-b709-17a89b03a7c0": {
+      "channels": {
+        "0": {
+          "on_demand": false,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c39/s0/live"
+        }
+      },
+      "name": "Lobby"
+    },
     "049d3cb9-2f1a-403c-af3f-e846b80e761d": {
       "channels": {
         "0": {
-          "on_demand": true,
+          "on_demand": false,
           "url": "rtsp://admin:Oikn2024!@10.20.137.242:554/unicast/c2/s0/live"
         }
       },
@@ -41,7 +50,7 @@
     "449a6f3a-157d-446f-af33-ff4463ba0338": {
       "channels": {
         "0": {
-          "on_demand": true,
+          "on_demand": false,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c2/s0/live"
         }
       },
@@ -50,7 +59,7 @@
     "b02d478b-ed2d-4249-b2f8-16a9ead9fa3c": {
       "channels": {
         "0": {
-          "on_demand": true,
+          "on_demand": false,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c39/s0/live"
         }
       },
@@ -59,7 +68,7 @@
     "f3c04322-e033-4dcd-a715-e8859bae97ff": {
       "channels": {
         "0": {
-          "on_demand": true,
+          "on_demand": false,
           "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c1/s0/live"
         }
       },

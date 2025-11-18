@@ -47,6 +47,60 @@
       },
       "name": "Data Center"
     },
+    "07d42a73-2102-455e-82b5-12116c84e279": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1701"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "094eba6d-c280-4e46-b8d7-19820bf454c8": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/4001"
+        }
+      },
+      "name": "ASN 1"
+    },
+    "105906f6-6f4a-4a39-b1b9-36dad55ece90": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c48/s0/live"
+        }
+      },
+      "name": "Pintu Masuk Lobby Sayap Kiri"
+    },
+    "1b6f80a6-44cc-46ca-a05c-7b68762b3710": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3101"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "1c2fa1de-b4af-421c-a2ec-76aa4533f8a1": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/701"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "1e3c5a27-cd0f-4d82-b19f-0c029f5122a3": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2701"
+        }
+      },
+      "name": "HPK 1B"
+    },
     "221c3df5-4b24-4cfe-861b-e7dfc39aeb1c": {
       "channels": {
         "0": {
@@ -55,6 +109,105 @@
         }
       },
       "name": "Pintu Masuk Lobby Utama"
+    },
+    "27fd5975-2dbc-441a-9e95-9263d7e023d5": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3701"
+        }
+      },
+      "name": "TPST"
+    },
+    "29c44267-d4b3-4ae4-9b18-a559bd78b13b": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@10.20.105.12:554/Streaming/channels/701"
+        }
+      },
+      "name": "Rest Area 3"
+    },
+    "2db74afb-8cca-415f-ad12-f4e8059ef48a": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1401"
+        }
+      },
+      "name": "HPK 1C"
+    },
+    "37f927e4-6bee-470a-b311-16a498a082ac": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3001"
+        }
+      },
+      "name": "Kantor OIKN"
+    },
+    "3c247a3d-8f2f-4661-a67b-99d0e3042726": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1001"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "3e983ef1-f9e3-4730-bbb8-a1a28b57a463": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3301"
+        }
+      },
+      "name": "HPK 1C"
+    },
+    "3f23d79b-6a8d-4af3-aea1-e36761469399": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3101"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "40b6b9aa-a5d6-41c7-89ad-2edafa5ebfc9": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2401"
+        }
+      },
+      "name": "PSSI"
+    },
+    "40c879c9-bffe-4348-88b5-76c09fcb325e": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@10.20.105.12:554/Streaming/channels/801"
+        }
+      },
+      "name": "Rest Area 2"
+    },
+    "42621b04-f086-4ca1-9935-3e965dc8080e": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2301"
+        }
+      },
+      "name": "Rusun ASN 4"
+    },
+    "439d6faa-bcbd-4127-89ae-816a2ff67536": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/801"
+        }
+      },
+      "name": "Rest Area"
     },
     "449a6f3a-157d-446f-af33-ff4463ba0338": {
       "channels": {
@@ -65,6 +218,123 @@
       },
       "name": "SB Kendaraan Out"
     },
+    "44a8d6a4-011d-4aa1-9236-03a74e93f3b6": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1501"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "49f3dcf1-0507-4603-b14c-7c356e2ff09a": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2501"
+        }
+      },
+      "name": "RTJM"
+    },
+    "4cdb385a-de2b-4909-a148-a349429e75dc": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/401"
+        }
+      },
+      "name": "HPK Site1A"
+    },
+    "5098e8b7-8e36-42c4-b4eb-ffe6d1faafb3": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1901"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "53571104-7464-45d6-abb8-4b02c825ac16": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3801"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "547b3bf6-f63f-47ea-bbc5-17ae66ef5fc6": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1101"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "547dfa27-5c55-4169-ac65-f875ad6fc910": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@10.20.105.12:554/Streaming/channels/101"
+        }
+      },
+      "name": "Rest Area 1"
+    },
+    "552f3e59-34a4-4391-9aa5-cae0ed558a81": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3901"
+        }
+      },
+      "name": "HPK  2"
+    },
+    "55a6dfca-79a3-4de0-b062-e8b9a72b335c": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3701"
+        }
+      },
+      "name": "TPST"
+    },
+    "5668f170-7a8a-48b7-9d63-1dbea92839d2": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2201"
+        }
+      },
+      "name": "TPST"
+    },
+    "5704efc9-e8be-4777-b9f5-f845c71e9b0a": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1601"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "5897af62-f2ea-4554-83d1-15650c479a64": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3201"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "5d26b589-36ff-43d5-91bb-68546d0cc601": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3501"
+        }
+      },
+      "name": "Rumtek"
+    },
     "5f052b8d-9a9d-484c-be35-5b899901a11d": {
       "channels": {
         "0": {
@@ -73,6 +343,258 @@
         }
       },
       "name": "Lobby Utama"
+    },
+    "605ffa32-fc13-4836-9d5e-adb96c2f7b1a": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/4001"
+        }
+      },
+      "name": "ASN 1"
+    },
+    "6092e74c-4cdc-417d-8bd3-647d6465c593": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1301"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "6280c76d-923f-461c-a9a7-de57a608c5ee": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3601"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "6478b228-4b8b-419f-a524-62c1129dbb10": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3301"
+        }
+      },
+      "name": "HPK 1C"
+    },
+    "64930c68-3097-4f72-87a0-74c42359c26b": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/4301"
+        }
+      },
+      "name": "HPK 2"
+    },
+    "67923a97-126c-45b3-9fb4-c8f30ba89985": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@10.20.105.12:554/Streaming/channels/601"
+        }
+      },
+      "name": "Jalan Negara"
+    },
+    "6d1cd61e-94c1-4c86-807b-6ce2baa4457f": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2701"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "6d676941-2a5d-4a6b-b55c-c9b59d2f8a11": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/301"
+        }
+      },
+      "name": "HPK Site1A"
+    },
+    "6d8c08e6-7b58-4d39-b96e-347d67a80704": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1501"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "6ea75ff4-a37c-4fa4-978a-f8d00942032f": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1901"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "72a71c21-6ca0-49c1-a049-eeb36a824513": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/101"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "797a3db9-67a0-4add-946d-d177e571ea92": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3801"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "7b088c19-d0fd-4bd4-9f17-18eb9dbb70e8": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2601"
+        }
+      },
+      "name": "RTJM"
+    },
+    "7be04f83-7ea6-4316-88c9-c09cb2155e56": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/101"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "7cdbb65a-0dd9-462e-8c91-ee4cc35f1027": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/701"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "7cdc3e85-9923-447c-b5af-0d26750cccbd": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/4301"
+        }
+      },
+      "name": "HPK 2"
+    },
+    "816a8715-ff14-483c-ba19-ba8db108cb95": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c58/s0/live"
+        }
+      },
+      "name": "City Hall"
+    },
+    "81cd9c76-4ac7-4e63-b0f0-185c9579b5b4": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1701"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "8407d739-47db-457e-a577-bb2a3670e45c": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1001"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "877ac21c-02a1-445a-b4b7-71cb7f8ae4ab": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2801"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "88f258b3-d3a2-4844-8041-c7b045a21b79": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1201"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "8bcf6d76-131a-4b82-8e61-cbfb3a5cc5ce": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1101"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "8d414a42-acca-4ba5-b1fb-c9a11b7461f9": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3601"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "9538878d-6f62-4c9c-842b-76d9456bb427": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/501"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "97d38beb-4a7f-4ba5-a623-41184cadd3ea": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/201"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "99f692d4-a0d8-4185-88a1-5bad6955b82e": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1601"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "a1dd9492-87e9-4366-8c6b-0844f71a60bd": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1201"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "a22bf532-0432-4500-9e02-10b94665245d": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2101"
+        }
+      },
+      "name": "SOC"
     },
     "aac4c385-3e16-45b4-b753-bc21bdb02437": {
       "channels": {
@@ -83,6 +605,15 @@
       },
       "name": "SB Kendaraan Out"
     },
+    "acbf46f1-d6ce-4bb2-9cc7-4c08135963c7": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/901"
+        }
+      },
+      "name": "Rest Area"
+    },
     "b02d478b-ed2d-4249-b2f8-16a9ead9fa3c": {
       "channels": {
         "0": {
@@ -91,6 +622,78 @@
         }
       },
       "name": "Lobby OIKN"
+    },
+    "b054eb49-2161-441b-a69c-313a34c005b9": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2201"
+        }
+      },
+      "name": "TPST"
+    },
+    "b0ab8230-6d9d-4e9b-ae38-46f75baf08c8": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2001"
+        }
+      },
+      "name": "Kantor OIKN"
+    },
+    "b0d46fab-56d2-42ac-ae08-102d5bd4c3a7": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2901"
+        }
+      },
+      "name": "Hotel Nusantara"
+    },
+    "b28127fa-16e2-485b-abe1-56629d3742ea": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3901"
+        }
+      },
+      "name": "HPK  2"
+    },
+    "b2e30fd7-a26e-4dee-b151-075eda042ff7": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2801"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "b38d60ce-b181-4830-843f-4baecda68c16": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3401"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "b38f2b30-0b4d-4e48-8c98-66fd9dad0903": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2101"
+        }
+      },
+      "name": "SOC"
+    },
+    "b49bbd19-c57a-4c04-afc6-1636fcf595b1": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:Oikn2024!@10.20.136.2:554/unicast/c39/s0/live"
+        }
+      },
+      "name": "Lobby IKN"
     },
     "b4be4ae3-4658-45ce-a31f-40c9bf94b130": {
       "channels": {
@@ -101,6 +704,168 @@
       },
       "name": "Data Center"
     },
+    "b844e167-9919-41ad-8a80-3cfef0c4ead5": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2501"
+        }
+      },
+      "name": "RTJM"
+    },
+    "b99dd29e-9ef1-486c-9ee0-af43442674ae": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2601"
+        }
+      },
+      "name": "RTJM"
+    },
+    "bdf773c4-8e75-4d73-a49f-3778b7db3504": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2001"
+        }
+      },
+      "name": "Kantor OIKN"
+    },
+    "becaa777-4739-4410-9afa-0b687a629e41": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3401"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "c2f10315-036a-441b-9954-fa47a81e9f02": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2901"
+        }
+      },
+      "name": "Hotel Nusantara"
+    },
+    "c5b9c66d-0902-431e-ab7d-f46d73727052": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/201"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "c762d283-ed81-41a4-a774-8b9d387cf21e": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1301"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "c888dd0d-556f-43cf-af21-24f70648d505": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/801"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "c8b0ff24-4a38-4b23-874e-102a197531fd": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3001"
+        }
+      },
+      "name": "Kantor OIKN"
+    },
+    "cdf98e40-a8cf-44da-8035-93f4df0ededc": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/501"
+        }
+      },
+      "name": "HPK 1 Site 2"
+    },
+    "dfb9bbe8-8fe9-415e-8001-df120e93c321": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3501"
+        }
+      },
+      "name": "Rumtek"
+    },
+    "e048ec30-bd9e-4154-be15-fe2433e1094c": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1801"
+        }
+      },
+      "name": "Hotel Nusantara"
+    },
+    "e4f644de-ca42-48d7-9ef0-c5038c098dae": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/601"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "e8be3ec0-3129-44f6-ae67-4419a6b3d5ff": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/401"
+        }
+      },
+      "name": "HPK Site1A"
+    },
+    "ed0ee982-4cea-4fd3-b2d4-b8656f8ea115": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/3201"
+        }
+      },
+      "name": "HPK 1B"
+    },
+    "ed5cd56b-6f75-4a73-ab29-eac770c386b7": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/901"
+        }
+      },
+      "name": "Rest Area"
+    },
+    "edcc955f-3b89-4f8a-a592-dbc95601c47d": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2301"
+        }
+      },
+      "name": "Rusun ASN 4"
+    },
+    "f2744bd6-c1b2-4928-b669-fdfc94e61ffc": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1401"
+        }
+      },
+      "name": "HPK 1C"
+    },
     "f3c04322-e033-4dcd-a715-e8859bae97ff": {
       "channels": {
         "0": {
@@ -109,6 +874,42 @@
         }
       },
       "name": "Pintu Masuk Kantor"
+    },
+    "f3e1dde0-28ea-4e6c-a87a-b701e45e1b2b": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/601"
+        }
+      },
+      "name": "Jl. Negara"
+    },
+    "fa135247-42bf-4016-ac30-12b9e1188077": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/301"
+        }
+      },
+      "name": "HPK Site1A"
+    },
+    "fa991220-834c-4b0e-b99b-f6f7237d4fda": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/1801"
+        }
+      },
+      "name": "Hotel Nusantara"
+    },
+    "fe50b37f-7987-4b3d-882c-acd174dfc13d": {
+      "channels": {
+        "0": {
+          "on_demand": true,
+          "url": "rtsp://admin:hik12345@36.91.27.35:554/Streaming/channels/2401"
+        }
+      },
+      "name": "PSSI"
     }
   }
 }

@@ -2,9 +2,13 @@ package service
 
 import (
 	"bytes"
+	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"time"
 )
 
 type RTSPService interface {
@@ -13,6 +17,7 @@ type RTSPService interface {
 	GetStreamStatus(streamID string) (string, error)
 	GetHLSURL(streamID string) string
 	GetSnapshotURL(streamID string) string
+	GetSnapshotHash(streamID string) (string, error) // New: Get snapshot hash for frozen detection
 }
 
 type rtspService struct {
@@ -24,12 +29,26 @@ type rtspService struct {
 }
 
 func NewRTSPService(apiURL, publicBaseURL, username, password string) RTSPService {
+	// Configure HTTP client with proper timeouts and connection pooling
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		DisableKeepAlives:   false,
+		DisableCompression:  false,
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second, // 10 second timeout for all requests
+	}
+
 	return &rtspService{
 		apiURL:        apiURL,
 		publicBaseURL: publicBaseURL,
 		username:      username,
 		password:      password,
-		httpClient:    &http.Client{},
+		httpClient:    httpClient,
 	}
 }
 
@@ -55,8 +74,8 @@ func (s *rtspService) AddStream(cameraID, name, rtspURL string) (streamID, hlsUR
 		"channels": map[string]interface{}{
 			"0": map[string]interface{}{
 				"url":        rtspURL,
-				"on_demand":  false, // ✅ ADDED: Always running (instant playback)
-				"persistent": true,  // ✅ ADDED: Auto-reconnect on failure
+				"on_demand":  false, // Always running (instant playback)
+				"persistent": true,  // Auto-reconnect on failure
 			},
 		},
 	}
@@ -66,7 +85,10 @@ func (s *rtspService) AddStream(cameraID, name, rtspURL string) (streamID, hlsUR
 		return "", "", "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/stream/%s/add", s.apiURL, cameraID), bytes.NewBuffer(jsonData))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%s/stream/%s/add", s.apiURL, cameraID), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -81,7 +103,8 @@ func (s *rtspService) AddStream(cameraID, name, rtspURL string) (streamID, hlsUR
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", "", "", fmt.Errorf("RTSPtoWeb API returned status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return "", "", "", fmt.Errorf("RTSPtoWeb API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	streamID = cameraID
@@ -92,7 +115,10 @@ func (s *rtspService) AddStream(cameraID, name, rtspURL string) (streamID, hlsUR
 }
 
 func (s *rtspService) RemoveStream(streamID string) error {
-	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/stream/%s/delete", s.apiURL, streamID), nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/stream/%s/delete", s.apiURL, streamID), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -106,14 +132,59 @@ func (s *rtspService) RemoveStream(streamID string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("RTSPtoWeb API returned status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("RTSPtoWeb API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
 }
 
 func (s *rtspService) GetStreamStatus(streamID string) (string, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/stream/%s/info", s.apiURL, streamID), nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/stream/%s/info", s.apiURL, streamID), nil)
+	if err != nil {
+		return "ERROR", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(s.username, s.password)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "ERROR", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		// Try to parse response to get actual status
+		var info map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&info); err == nil {
+			if channels, ok := info["channels"].(map[string]interface{}); ok {
+				if ch0, ok := channels["0"].(map[string]interface{}); ok {
+					if status, ok := ch0["status"].(string); ok {
+						return status, nil
+					}
+				}
+			}
+		}
+		return "READY", nil
+	}
+
+	return "OFFLINE", nil
+}
+
+// GetSnapshotHash gets the MD5 hash of the current snapshot for frozen detection
+func (s *rtspService) GetSnapshotHash(streamID string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	snapshotURL := s.GetSnapshotURL(streamID)
+	if snapshotURL == "" {
+		return "", fmt.Errorf("invalid stream ID")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", snapshotURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -122,13 +193,21 @@ func (s *rtspService) GetStreamStatus(streamID string) (string, error) {
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
+		return "", fmt.Errorf("failed to fetch snapshot: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		return "READY", nil
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("snapshot returned status: %d", resp.StatusCode)
 	}
 
-	return "OFFLINE", nil
+	// Read snapshot data
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read snapshot: %w", err)
+	}
+
+	// Calculate MD5 hash
+	hash := fmt.Sprintf("%x", md5.Sum(data))
+	return hash, nil
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/service"
@@ -73,18 +74,36 @@ func (h *CameraHandler) GetByID(c *fiber.Ctx) error {
 
 	camera, err := h.cameraService.GetByID(id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(
+		// Check if it's a "not found" error
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					"The requested camera does not exist or has been deleted",
+				),
+			)
+		}
+		
+		return c.Status(fiber.StatusInternalServerError).JSON(
 			models.NewErrorResponse(
-				models.ErrCodeNotFound,
-				"Camera not found",
+				models.ErrCodeInternalError,
+				"Failed to retrieve camera",
 				err.Error(),
 			),
 		)
 	}
 
+	// Check if camera is offline and provide appropriate message
+	message := "Camera retrieved successfully"
+	if camera.Status == "OFFLINE" {
+		message = "Camera retrieved successfully. Camera is currently offline"
+	}
+
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
 		Success: true,
-		Message: "Camera retrieved successfully",
+		Message: message,
 		Data:    camera,
 	})
 }
@@ -134,12 +153,13 @@ func (h *CameraHandler) Update(c *fiber.Ctx) error {
 	camera, err := h.cameraService.Update(id, &req)
 	if err != nil {
 		// Check if camera not found
-		if err.Error() == "camera not found" {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
 			return c.Status(fiber.StatusNotFound).JSON(
 				models.NewErrorResponse(
 					models.ErrCodeNotFound,
 					"Camera not found",
-					err.Error(),
+					"The requested camera does not exist or has been deleted",
 				),
 			)
 		}
@@ -153,9 +173,14 @@ func (h *CameraHandler) Update(c *fiber.Ctx) error {
 		)
 	}
 
+	message := "Camera updated successfully"
+	if camera.Status == "OFFLINE" {
+		message = "Camera updated successfully. Note: Camera is currently offline"
+	}
+
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
 		Success: true,
-		Message: "Camera updated successfully",
+		Message: message,
 		Data:    camera,
 	})
 }
@@ -166,12 +191,13 @@ func (h *CameraHandler) Delete(c *fiber.Ctx) error {
 
 	if err := h.cameraService.Delete(id); err != nil {
 		// Check if camera not found
-		if err.Error() == "camera not found" {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
 			return c.Status(fiber.StatusNotFound).JSON(
 				models.NewErrorResponse(
 					models.ErrCodeNotFound,
 					"Camera not found",
-					err.Error(),
+					"The requested camera does not exist or has already been deleted",
 				),
 			)
 		}
@@ -282,17 +308,29 @@ func (h *CameraHandler) StartStream(c *fiber.Ctx) error {
 	camera, err := h.cameraService.StartStream(id)
 	if err != nil {
 		// Check if camera not found
-		if err.Error() == "camera not found" {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
 			return c.Status(fiber.StatusNotFound).JSON(
 				models.NewErrorResponse(
 					models.ErrCodeNotFound,
 					"Camera not found",
-					err.Error(),
+					"The requested camera does not exist or has been deleted",
 				),
 			)
 		}
 
-		return c.Status(fiber.StatusBadRequest).JSON(
+		// Check if it's a stream start failure
+		if strings.Contains(errMsg, "failed to start stream") {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeServiceUnavailable,
+					"Failed to start stream",
+					"Unable to connect to camera stream. Please check the RTSP URL and camera connection",
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusServiceUnavailable).JSON(
 			models.NewErrorResponse(
 				models.ErrCodeServiceUnavailable,
 				"Failed to start stream",
@@ -301,9 +339,14 @@ func (h *CameraHandler) StartStream(c *fiber.Ctx) error {
 		)
 	}
 
+	message := "Stream started successfully"
+	if camera.Status == "OFFLINE" {
+		message = "Stream started but camera appears to be offline. Please check the camera connection"
+	}
+
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
 		Success: true,
-		Message: "Stream started successfully",
+		Message: message,
 		Data:    camera,
 	})
 }
@@ -314,17 +357,18 @@ func (h *CameraHandler) StopStream(c *fiber.Ctx) error {
 
 	if err := h.cameraService.StopStream(id); err != nil {
 		// Check if camera not found
-		if err.Error() == "camera not found" {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
 			return c.Status(fiber.StatusNotFound).JSON(
 				models.NewErrorResponse(
 					models.ErrCodeNotFound,
 					"Camera not found",
-					err.Error(),
+					"The requested camera does not exist or has been deleted",
 				),
 			)
 		}
 
-		return c.Status(fiber.StatusBadRequest).JSON(
+		return c.Status(fiber.StatusServiceUnavailable).JSON(
 			models.NewErrorResponse(
 				models.ErrCodeServiceUnavailable,
 				"Failed to stop stream",
@@ -335,6 +379,93 @@ func (h *CameraHandler) StopStream(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
 		Success: true,
-		Message: "Stream stopped successfully",
+		Message: "Stream stopped successfully. Camera is now offline",
+	})
+}
+
+// GetPreview handler untuk mendapatkan preview video kamera
+func (h *CameraHandler) GetPreview(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	preview, err := h.cameraService.GetPreview(id)
+	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					"The requested camera does not exist or has been deleted",
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to get camera preview",
+				err.Error(),
+			),
+		)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
+		Success: true,
+		Message: "Camera preview retrieved successfully",
+		Data:    preview,
+	})
+}
+
+// ReportStreamError handler untuk melaporkan error stream dari frontend
+func (h *CameraHandler) ReportStreamError(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	// Parse request body
+	var req models.StreamErrorReport
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeValidationFailed,
+				"Invalid request body",
+				err.Error(),
+			),
+		)
+	}
+
+	// Validate error type
+	if req.ErrorType == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeMissingFields,
+				"Error type is required",
+			),
+		)
+	}
+
+	// Report error and update camera status to offline
+	if err := h.cameraService.ReportStreamError(id, req.ErrorType); err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "camera not found") || strings.Contains(errMsg, "not found") {
+			return c.Status(fiber.StatusNotFound).JSON(
+				models.NewErrorResponse(
+					models.ErrCodeNotFound,
+					"Camera not found",
+					"The requested camera does not exist or has been deleted",
+				),
+			)
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(
+			models.NewErrorResponse(
+				models.ErrCodeInternalError,
+				"Failed to report stream error",
+				err.Error(),
+			),
+		)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(models.APIResponse{
+		Success: true,
+		Message: "Stream error reported. Camera status updated to offline",
 	})
 }

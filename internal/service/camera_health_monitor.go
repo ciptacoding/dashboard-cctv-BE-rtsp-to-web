@@ -5,6 +5,7 @@ import (
 	"cctv-monitoring-backend/internal/repository"
 	ws "cctv-monitoring-backend/internal/websocket"
 	"database/sql"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -21,6 +22,20 @@ type CameraHealthMonitor struct {
 
 	// Track camera check history untuk detect frozen streams
 	lastCheckStatus map[string]CameraHealthStatus
+
+	// Rate limiting untuk health checks
+	checkSemaphore chan struct{}
+
+	// Track restart attempts untuk exponential backoff
+	restartAttempts map[string]restartAttempt
+	restartMu       sync.RWMutex
+}
+
+// restartAttempt tracks restart attempts for exponential backoff
+type restartAttempt struct {
+	count       int
+	lastAttempt time.Time
+	nextRetry   time.Time
 }
 
 // CameraHealthStatus tracks the health status of a camera
@@ -29,6 +44,7 @@ type CameraHealthStatus struct {
 	LastChecked      time.Time
 	ConsecutiveFails int
 	LastSuccessTime  time.Time
+	LastSnapshotHash string // Track snapshot hash for frozen detection
 }
 
 // NewCameraHealthMonitor creates a new camera health monitor
@@ -38,6 +54,13 @@ func NewCameraHealthMonitor(
 	wsHub *ws.Hub,
 	interval time.Duration,
 ) *CameraHealthMonitor {
+	// Limit concurrent health checks to prevent overwhelming RTSP service
+	// Allow max 5 concurrent checks at a time
+	maxConcurrentChecks := 5
+	if maxConcurrentChecks < 3 {
+		maxConcurrentChecks = 3
+	}
+
 	return &CameraHealthMonitor{
 		cameraRepo:      cameraRepo,
 		rtspService:     rtspService,
@@ -45,6 +68,8 @@ func NewCameraHealthMonitor(
 		interval:        interval,
 		stopChan:        make(chan bool),
 		lastCheckStatus: make(map[string]CameraHealthStatus),
+		checkSemaphore:  make(chan struct{}, maxConcurrentChecks),
+		restartAttempts: make(map[string]restartAttempt),
 	}
 }
 
@@ -74,7 +99,7 @@ func (m *CameraHealthMonitor) Stop() {
 	m.stopChan <- true
 }
 
-// checkAllCameras checks health of all active cameras
+// checkAllCameras checks health of all active cameras with rate limiting
 func (m *CameraHealthMonitor) checkAllCameras() {
 	// Get all active cameras
 	cameras, _, err := m.cameraRepo.GetAll(1, 1000) // Get all cameras
@@ -83,14 +108,42 @@ func (m *CameraHealthMonitor) checkAllCameras() {
 		return
 	}
 
-	log.Printf("🔍 Checking health of %d cameras...", len(cameras))
-
+	activeCameras := make([]*models.Camera, 0)
 	for _, camera := range cameras {
-		if !camera.IsActive {
-			continue
+		if camera.IsActive {
+			activeCameras = append(activeCameras, camera)
 		}
+	}
 
-		go m.checkCameraHealth(camera)
+	log.Printf("🔍 Checking health of %d active cameras...", len(activeCameras))
+
+	// Use semaphore to limit concurrent checks
+	var wg sync.WaitGroup
+	for _, camera := range activeCameras {
+		wg.Add(1)
+		go func(cam *models.Camera) {
+			defer wg.Done()
+
+			// Acquire semaphore (rate limiting)
+			m.checkSemaphore <- struct{}{}
+			defer func() { <-m.checkSemaphore }()
+
+			m.checkCameraHealth(cam)
+		}(camera)
+	}
+
+	// Wait for all checks to complete (with timeout)
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All checks completed
+	case <-time.After(2 * m.interval):
+		log.Printf("⚠️  Health check timeout - some cameras may not have been checked")
 	}
 }
 
@@ -105,6 +158,9 @@ func (m *CameraHealthMonitor) checkCameraHealth(camera *models.Camera) {
 
 	// Check stream status from RTSPtoWeb
 	status, err := m.rtspService.GetStreamStatus(streamID)
+	if err != nil {
+		log.Printf("⚠️  Error checking status for camera %s (%s): %v", camera.Name, camera.ID, err)
+	}
 
 	m.mu.Lock()
 	lastStatus := m.lastCheckStatus[camera.ID]
@@ -120,6 +176,7 @@ func (m *CameraHealthMonitor) checkCameraHealth(camera *models.Camera) {
 	if err != nil || status == "OFFLINE" || status == "ERROR" {
 		newStatus.ConsecutiveFails = lastStatus.ConsecutiveFails + 1
 		newStatus.LastSuccessTime = lastStatus.LastSuccessTime
+		newStatus.LastSnapshotHash = lastStatus.LastSnapshotHash
 
 		// If this is a new failure or consistent failure
 		if newStatus.ConsecutiveFails >= 2 {
@@ -127,7 +184,26 @@ func (m *CameraHealthMonitor) checkCameraHealth(camera *models.Camera) {
 		}
 	} else if status == "READY" || status == "ONLINE" {
 		newStatus.ConsecutiveFails = 0
-		newStatus.LastSuccessTime = now
+
+		// Try to get snapshot hash to verify stream is actually updating
+		if snapshotHash, err := m.rtspService.GetSnapshotHash(streamID); err == nil {
+			newStatus.LastSnapshotHash = snapshotHash
+			newStatus.LastSuccessTime = now
+
+			// Log if snapshot hash changed (stream is updating)
+			if lastStatus.LastSnapshotHash != "" && snapshotHash != lastStatus.LastSnapshotHash {
+				log.Printf("✓ Camera %s (%s) stream is updating", camera.Name, camera.ID)
+			}
+		} else {
+			// If we can't get snapshot, use last known values
+			log.Printf("⚠️  Could not get snapshot for camera %s (%s): %v", camera.Name, camera.ID, err)
+			newStatus.LastSnapshotHash = lastStatus.LastSnapshotHash
+			if lastStatus.LastSuccessTime.IsZero() {
+				newStatus.LastSuccessTime = now
+			} else {
+				newStatus.LastSuccessTime = lastStatus.LastSuccessTime
+			}
+		}
 
 		// If camera was previously offline, notify it's back online
 		if lastStatus.Status == "OFFLINE" && lastStatus.ConsecutiveFails >= 2 {
@@ -135,17 +211,11 @@ func (m *CameraHealthMonitor) checkCameraHealth(camera *models.Camera) {
 		}
 	}
 
-	// Detect frozen stream (stream is "READY" but no frame updates)
+	// Detect frozen stream using snapshot comparison
 	if status == "READY" {
-		// Check if camera hasn't updated in a while
-		if camera.LastSeen.Valid {
-			lastSeenTime := camera.LastSeen.Time
-			timeSinceLastSeen := now.Sub(lastSeenTime)
-
-			// If no update in 60 seconds, consider frozen
-			if timeSinceLastSeen > 60*time.Second {
-				m.handleCameraFrozen(camera)
-			}
+		// Check if stream is actually frozen by comparing snapshots
+		if m.isStreamFrozen(camera.ID, streamID) {
+			m.handleCameraFrozen(camera)
 		}
 	}
 
@@ -154,14 +224,15 @@ func (m *CameraHealthMonitor) checkCameraHealth(camera *models.Camera) {
 	m.lastCheckStatus[camera.ID] = newStatus
 	m.mu.Unlock()
 
-	// Update database if status changed
-	if camera.Status != status {
-		camera.Status = status
-		camera.LastSeen = sql.NullTime{Time: now, Valid: true}
+	// Always update database with current status and last_seen
+	// This ensures status is always synced with database
+	camera.Status = status
+	camera.LastSeen = sql.NullTime{Time: now, Valid: true}
 
-		if err := m.cameraRepo.Update(camera.ID, camera); err != nil {
-			log.Printf("Error updating camera status in DB: %v", err)
-		}
+	if err := m.cameraRepo.Update(camera.ID, camera); err != nil {
+		log.Printf("Error updating camera status in DB: %v", err)
+	} else {
+		log.Printf("✓ Updated camera %s status to %s in database", camera.ID, status)
 	}
 }
 
@@ -174,7 +245,9 @@ func (m *CameraHealthMonitor) handleCameraOffline(camera *models.Camera, status 
 	camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
 
 	if err := m.cameraRepo.Update(camera.ID, camera); err != nil {
-		log.Printf("Error updating camera status: %v", err)
+		log.Printf("Error updating camera status to OFFLINE in database: %v", err)
+	} else {
+		log.Printf("✓ Updated camera %s status to OFFLINE in database", camera.ID)
 	}
 
 	// Broadcast to WebSocket clients
@@ -205,7 +278,9 @@ func (m *CameraHealthMonitor) handleCameraOnline(camera *models.Camera) {
 	camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
 
 	if err := m.cameraRepo.Update(camera.ID, camera); err != nil {
-		log.Printf("Error updating camera status: %v", err)
+		log.Printf("Error updating camera status to ONLINE in database: %v", err)
+	} else {
+		log.Printf("✓ Updated camera %s status to ONLINE in database", camera.ID)
 	}
 
 	// Broadcast to WebSocket clients
@@ -240,9 +315,77 @@ func (m *CameraHealthMonitor) handleCameraFrozen(camera *models.Camera) {
 	go m.attemptStreamRestart(camera)
 }
 
-// attemptStreamRestart attempts to restart a camera stream
+// isStreamFrozen checks if a stream is frozen by comparing snapshot hashes
+func (m *CameraHealthMonitor) isStreamFrozen(cameraID, streamID string) bool {
+	m.mu.RLock()
+	lastStatus, exists := m.lastCheckStatus[cameraID]
+	m.mu.RUnlock()
+
+	if !exists || lastStatus.LastSnapshotHash == "" {
+		// First check or no previous hash, can't determine if frozen
+		return false
+	}
+
+	// Get current snapshot hash
+	currentHash, err := m.rtspService.GetSnapshotHash(streamID)
+	if err != nil {
+		// If we can't get snapshot, check time-based fallback
+		timeSinceLastSuccess := time.Since(lastStatus.LastSuccessTime)
+		// If no update in 60 seconds, consider frozen
+		return timeSinceLastSuccess > 60*time.Second
+	}
+
+	// Compare hashes - if same hash for too long, stream is frozen
+	if currentHash == lastStatus.LastSnapshotHash {
+		timeSinceLastSuccess := time.Since(lastStatus.LastSuccessTime)
+		// Same snapshot for more than 45 seconds = frozen
+		if timeSinceLastSuccess > 45*time.Second {
+			log.Printf("🧊 Camera %s appears frozen - same snapshot hash for %v", cameraID, timeSinceLastSuccess)
+			return true
+		}
+	}
+
+	return false
+}
+
+// attemptStreamRestart attempts to restart a camera stream with exponential backoff
 func (m *CameraHealthMonitor) attemptStreamRestart(camera *models.Camera) {
-	log.Printf("🔄 Attempting to restart stream for camera %s", camera.Name)
+	cameraID := camera.ID
+
+	// Check if we should retry (exponential backoff)
+	m.restartMu.Lock()
+	attempt, exists := m.restartAttempts[cameraID]
+	now := time.Now()
+
+	if exists && now.Before(attempt.nextRetry) {
+		m.restartMu.Unlock()
+		log.Printf("⏳ Skipping restart for camera %s - next retry in %v", camera.Name, attempt.nextRetry.Sub(now))
+		return
+	}
+
+	// Update restart attempt tracking
+	if !exists {
+		attempt = restartAttempt{
+			count:       0,
+			lastAttempt: now,
+		}
+	}
+
+	attempt.count++
+	attempt.lastAttempt = now
+
+	// Exponential backoff: 2^count seconds, max 5 minutes
+	backoffSeconds := 1 << uint(attempt.count-1) // 1, 2, 4, 8, 16, 32, 64, 128...
+	if backoffSeconds > 300 {                    // Max 5 minutes
+		backoffSeconds = 300
+	}
+	attempt.nextRetry = now.Add(time.Duration(backoffSeconds) * time.Second)
+
+	m.restartAttempts[cameraID] = attempt
+	m.restartMu.Unlock()
+
+	log.Printf("🔄 Attempting to restart stream for camera %s (attempt #%d, backoff: %ds)",
+		camera.Name, attempt.count, backoffSeconds)
 
 	// Stop existing stream
 	if camera.StreamID.Valid && camera.StreamID.String != "" {
@@ -269,10 +412,15 @@ func (m *CameraHealthMonitor) attemptStreamRestart(camera *models.Camera) {
 			camera.ID,
 			camera.Name,
 			"restart_failed",
-			"Failed to restart stream. Will retry...",
+			fmt.Sprintf("Failed to restart stream (attempt #%d). Will retry in %ds...", attempt.count, backoffSeconds),
 		)
 		return
 	}
+
+	// Success! Reset restart attempts
+	m.restartMu.Lock()
+	delete(m.restartAttempts, cameraID)
+	m.restartMu.Unlock()
 
 	// Update camera with new stream info
 	camera.StreamID = sql.NullString{String: streamID, Valid: true}
@@ -283,6 +431,8 @@ func (m *CameraHealthMonitor) attemptStreamRestart(camera *models.Camera) {
 
 	if err := m.cameraRepo.Update(camera.ID, camera); err != nil {
 		log.Printf("Error updating camera after restart: %v", err)
+	} else {
+		log.Printf("✓ Updated camera %s status to ONLINE in database after restart", camera.ID)
 	}
 
 	// Notify success

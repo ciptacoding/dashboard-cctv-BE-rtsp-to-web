@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -35,6 +36,9 @@ type Camera struct {
 	// Stream URLs (not stored in DB, generated dynamically)
 	HLSUrl      string `json:"hls_url,omitempty"`      // NEW
 	SnapshotUrl string `json:"snapshot_url,omitempty"` // NEW
+	
+	// Status information (not stored in DB, generated dynamically)
+	StatusMessage string `json:"status_message,omitempty"` // Human readable status message
 }
 
 // MarshalJSON custom JSON marshaling untuk Camera
@@ -84,6 +88,51 @@ func formatNullTime(nt sql.NullTime) string {
 	return ""
 }
 
+// GetStatusMessage returns a human-readable message based on camera status
+func GetStatusMessage(status string, hasStream bool, lastSeen sql.NullTime) string {
+	switch status {
+	case "ONLINE", "READY":
+		if hasStream {
+			return "Camera is online and streaming"
+		}
+		return "Camera is online but stream not started"
+	case "OFFLINE":
+		if lastSeen.Valid {
+			timeSince := time.Since(lastSeen.Time)
+			if timeSince < 1*time.Minute {
+				return "Camera is offline (just disconnected)"
+			} else if timeSince < 5*time.Minute {
+				return "Camera is offline (disconnected " + formatDuration(timeSince) + " ago)"
+			} else {
+				return "Camera is offline (disconnected " + formatDuration(timeSince) + " ago). Attempting to reconnect..."
+			}
+		}
+		return "Camera is offline. Attempting to reconnect..."
+	case "ERROR":
+		return "Camera encountered an error. Please check the connection"
+	case "FROZEN":
+		return "Camera stream appears frozen. Refreshing..."
+	default:
+		if !hasStream {
+			return "Camera stream not started"
+		}
+		return "Camera status unknown"
+	}
+}
+
+// formatDuration formats duration to human readable string
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%.0f seconds", d.Seconds())
+	} else if d < time.Hour {
+		minutes := int(d.Minutes())
+		return fmt.Sprintf("%d minute(s)", minutes)
+	} else {
+		hours := int(d.Hours())
+		return fmt.Sprintf("%d hour(s)", hours)
+	}
+}
+
 // CreateCameraRequest adalah struktur untuk membuat kamera baru
 type CreateCameraRequest struct {
 	Name         string   `json:"name"`
@@ -130,4 +179,22 @@ type CameraWithStream struct {
 	HLSUrl      string `json:"hls_url,omitempty"`
 	WebRTCUrl   string `json:"webrtc_url,omitempty"`
 	SnapshotURL string `json:"snapshot_url,omitempty"`
+}
+
+// CameraPreview adalah struktur untuk preview video kamera
+type CameraPreview struct {
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	Status        string       `json:"status"`
+	StatusMessage string       `json:"status_message"`
+	HLSUrl        string       `json:"hls_url,omitempty"`
+	SnapshotUrl   string       `json:"snapshot_url,omitempty"`
+	HasStream     bool         `json:"has_stream"`
+	LastSeen      sql.NullTime `json:"-"`
+}
+
+// StreamErrorReport adalah request untuk report stream error
+type StreamErrorReport struct {
+	ErrorType string `json:"error_type"` // "timeout", "hls_error", "network_error", etc.
+	Message   string `json:"message,omitempty"`
 }

@@ -3,8 +3,11 @@ package service
 import (
 	"cctv-monitoring-backend/internal/models"
 	"cctv-monitoring-backend/internal/repository"
+	ws "cctv-monitoring-backend/internal/websocket"
 	"database/sql"
 	"fmt"
+	"log"
+	"time"
 )
 
 type CameraService interface {
@@ -17,27 +20,35 @@ type CameraService interface {
 	GetNearby(lat, lng, radius float64) ([]*models.Camera, error)
 	StartStream(id string) (*models.Camera, error)
 	StopStream(id string) error
+	GetPreview(id string) (*models.CameraPreview, error)
+	ReportStreamError(id string, errorType string) error
 }
 
 type cameraService struct {
 	cameraRepo  repository.CameraRepository
 	rtspService RTSPService
+	wsHub       *ws.Hub
 }
 
-func NewCameraService(cameraRepo repository.CameraRepository, rtspService RTSPService) CameraService {
+func NewCameraService(cameraRepo repository.CameraRepository, rtspService RTSPService, wsHub *ws.Hub) CameraService {
 	return &cameraService{
 		cameraRepo:  cameraRepo,
 		rtspService: rtspService,
+		wsHub:       wsHub,
 	}
 }
 
-// enrichCameraWithStreamURLs menambahkan stream URLs ke camera
+// enrichCameraWithStreamURLs menambahkan stream URLs dan status message ke camera
 func (s *cameraService) enrichCameraWithStreamURLs(camera *models.Camera) {
 	if camera.StreamID.Valid && camera.StreamID.String != "" {
 		streamID := camera.StreamID.String
 		camera.HLSUrl = s.rtspService.GetHLSURL(streamID)
 		camera.SnapshotUrl = s.rtspService.GetSnapshotURL(streamID)
 	}
+	
+	// Add status message based on camera status
+	hasStream := camera.StreamID.Valid && camera.StreamID.String != ""
+	camera.StatusMessage = models.GetStatusMessage(camera.Status, hasStream, camera.LastSeen)
 }
 
 // enrichCamerasWithStreamURLs menambahkan stream URLs ke array cameras
@@ -48,6 +59,12 @@ func (s *cameraService) enrichCamerasWithStreamURLs(cameras []*models.Camera) {
 }
 
 func (s *cameraService) Create(req *models.CreateCameraRequest, userID string) (*models.Camera, error) {
+	// Set default status if not provided
+	status := req.Status
+	if status == "" {
+		status = "UNKNOWN"
+	}
+
 	camera := &models.Camera{
 		Name:         req.Name,
 		Description:  sql.NullString{String: req.Description, Valid: req.Description != ""},
@@ -63,7 +80,7 @@ func (s *cameraService) Create(req *models.CreateCameraRequest, userID string) (
 		Resolution:   sql.NullString{String: req.Resolution, Valid: req.Resolution != ""},
 		FPS:          req.FPS,
 		Tags:         req.Tags,
-		Status:       req.Status,
+		Status:       status,
 		IsActive:     true,
 		CreatedBy:    sql.NullString{String: userID, Valid: true},
 	}
@@ -84,8 +101,15 @@ func (s *cameraService) Create(req *models.CreateCameraRequest, userID string) (
 		camera.StreamID = sql.NullString{String: streamID, Valid: true}
 		camera.HLSUrl = hlsURL
 		camera.SnapshotUrl = snapshotURL
+		camera.Status = "READY"
+		camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
 
-		// Update camera dengan stream info
+		// Update camera dengan stream info dan status
+		s.cameraRepo.Update(camera.ID, camera)
+	} else {
+		// If stream failed, set status to OFFLINE
+		camera.Status = "OFFLINE"
+		camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
 		s.cameraRepo.Update(camera.ID, camera)
 	}
 
@@ -246,6 +270,7 @@ func (s *cameraService) StartStream(id string) (*models.Camera, error) {
 		camera.HLSUrl = hlsURL
 		camera.SnapshotUrl = snapshotURL
 		camera.Status = "READY"
+		camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
 
 		if err := s.cameraRepo.Update(id, camera); err != nil {
 			return nil, fmt.Errorf("failed to update camera: %w", err)
@@ -271,10 +296,72 @@ func (s *cameraService) StopStream(id string) error {
 
 		camera.StreamID = sql.NullString{Valid: false}
 		camera.Status = "OFFLINE"
+		camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
 
 		if err := s.cameraRepo.Update(id, camera); err != nil {
 			return fmt.Errorf("failed to update camera: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// GetPreview returns camera preview information for video display
+func (s *cameraService) GetPreview(id string) (*models.CameraPreview, error) {
+	camera, err := s.cameraRepo.GetByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("camera not found: %w", err)
+	}
+
+	// Enrich dengan stream URLs
+	s.enrichCameraWithStreamURLs(camera)
+
+	preview := &models.CameraPreview{
+		ID:            camera.ID,
+		Name:          camera.Name,
+		Status:        camera.Status,
+		StatusMessage: camera.StatusMessage,
+		HLSUrl:        camera.HLSUrl,
+		SnapshotUrl:   camera.SnapshotUrl,
+		HasStream:     camera.StreamID.Valid && camera.StreamID.String != "",
+		LastSeen:      camera.LastSeen,
+	}
+
+	return preview, nil
+}
+
+// ReportStreamError handles stream error reported from frontend and updates camera status to offline
+func (s *cameraService) ReportStreamError(id string, errorType string) error {
+	camera, err := s.cameraRepo.GetByID(id)
+	if err != nil {
+		return fmt.Errorf("camera not found: %w", err)
+	}
+
+	// Update status to OFFLINE
+	camera.Status = "OFFLINE"
+	camera.LastSeen = sql.NullTime{Time: time.Now(), Valid: true}
+
+	if err := s.cameraRepo.Update(id, camera); err != nil {
+		return fmt.Errorf("failed to update camera status: %w", err)
+	}
+
+	log.Printf("⚠️  Camera %s (%s) reported stream error: %s. Status updated to OFFLINE", camera.Name, camera.ID, errorType)
+
+	// Broadcast to WebSocket clients
+	if s.wsHub != nil {
+		s.wsHub.BroadcastCameraStatus(
+			camera.ID,
+			"OFFLINE",
+			camera.LastSeen.Time.Format(time.RFC3339),
+		)
+
+		errorMessage := fmt.Sprintf("Stream error detected: %s", errorType)
+		s.wsHub.BroadcastStreamUpdate(
+			camera.ID,
+			camera.Name,
+			"offline",
+			errorMessage,
+		)
 	}
 
 	return nil

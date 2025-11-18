@@ -45,14 +45,14 @@ func main() {
 	cameraRepo := repository.NewCameraRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
 
-	// Initialize services
-	authService := service.NewAuthService(userRepo, tokenRepo)
-	rtspService := service.NewRTSPService(cfg.RTSP.APIURL, cfg.RTSP.PublicBaseURL, cfg.RTSP.Username, cfg.RTSP.Password)
-	cameraService := service.NewCameraService(cameraRepo, rtspService)
-
 	// Initialize WebSocket Hub
 	wsHub := ws.NewHub()
 	go wsHub.Run()
+
+	// Initialize services
+	authService := service.NewAuthService(userRepo, tokenRepo)
+	rtspService := service.NewRTSPService(cfg.RTSP.APIURL, cfg.RTSP.PublicBaseURL, cfg.RTSP.Username, cfg.RTSP.Password)
+	cameraService := service.NewCameraService(cameraRepo, rtspService, wsHub)
 
 	// Initialize Camera Health Monitor
 	healthMonitor := service.NewCameraHealthMonitor(
@@ -165,6 +165,10 @@ func setupRoutes(
 	// Stream routes
 	cameras.Post("/:id/stream/start", cameraHandler.StartStream)
 	cameras.Post("/:id/stream/stop", cameraHandler.StopStream)
+	cameras.Post("/:id/stream/error", cameraHandler.ReportStreamError)
+
+	// Preview routes
+	cameras.Get("/:id/preview", cameraHandler.GetPreview)
 }
 
 // customErrorHandler adalah custom error handler untuk Fiber

@@ -219,9 +219,10 @@ func (r *cameraRepository) Update(id string, camera *models.Camera) error {
 			fps = $14,
 			tags = $15,
 			status = $16,
-			is_active = $17,
+			last_seen = $17,
+			is_active = $18,
 			updated_at = NOW()
-		WHERE id = $18
+		WHERE id = $19
 	`
 
 	_, err := r.db.Exec(
@@ -242,6 +243,7 @@ func (r *cameraRepository) Update(id string, camera *models.Camera) error {
 		camera.FPS,
 		pq.Array(camera.Tags),
 		camera.Status,
+		camera.LastSeen,
 		camera.IsActive,
 		id,
 	)
